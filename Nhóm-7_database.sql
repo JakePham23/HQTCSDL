@@ -69,6 +69,7 @@ CREATE TABLE SanPham (
     MaLoai VARCHAR(50),
     FOREIGN KEY (MaLoai) REFERENCES LoaiSanPham(MaLoai)
 );
+ALTER TABLE SanPham ADD  MoTa NVARCHAR(255)
 
 
 CREATE TABLE ChiTietDonHang (
