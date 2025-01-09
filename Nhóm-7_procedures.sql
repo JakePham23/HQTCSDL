@@ -48,8 +48,8 @@ BEGIN
     END
     ELSE IF @LoaiKM = 2
     BEGIN
-        INSERT INTO ComboSale (LoaiKM, SoLuong, MaKM)
-        VALUES (@LoaiKM, @SoLuong, @MaKM);
+        INSERT INTO ComboSale (LoaiKM, TiLeGiam, SoLuong, MaKM)
+        VALUES (@LoaiKM, @TiLeGiam, @SoLuong, @MaKM);
 		-- Kiểm tra sự thành công của lệnh INSERT
 		IF @@ROWCOUNT = 0
 		BEGIN
