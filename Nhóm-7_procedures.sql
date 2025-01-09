@@ -1,10 +1,4 @@
-﻿use convenientstore
-go
-select * from KhuyenMai
-select * from MemberSale
-select * from FlashSale
-select * from ComboSale
-
+﻿
 CREATE or ALTER PROCEDURE Sp_AddPromotion
     @MaSP VARCHAR(50),
     @NgayBatDau DATE,
