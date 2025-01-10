@@ -233,9 +233,13 @@ DELETE FROM DonDatHang
 DELETE FROM ChiTietDonHang
 
 -- Test
+
+-- Chạy trong cửa sổ Query 1:
 EXEC Sp_ReOrderStock 'SP001';
+
+-- Chạy trong cửa sổ Query 2 (ngay sau khi Query 1 bắt đầu):
 EXEC Sp_ProcessingOrder 1, 'SP001', 60, 1;
 
+SELECT * FROM SanPham WHERE MaSP = 'SP001'
 SELECT * FROM DonDatHang
 SELECT * FROM ChiTietDonHang 
-SELECT * FROM SanPham WHERE MaSP = 'SP001'

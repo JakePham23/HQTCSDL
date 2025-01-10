@@ -11,6 +11,8 @@ DELETE FROM DonDatHang
 DELETE FROM ChiTietDonHang
 
 -- Test xung đột
+
+-- Chạy trong cửa sổ Query 1:
 BEGIN TRANSACTION;
     SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
     DECLARE @SoLuongKho INT;
@@ -39,3 +41,9 @@ BEGIN TRANSACTION;
     PRINT N'Đã cập nhật giảm số lượng kho';
 COMMIT TRANSACTION;
 GO
+
+-- Xem kết quả
+-- Kết quả cho thấy dù số lượng tồn kho không đủ (40 < 60) nhưng vẫn không tạo đơn đặt hàng
+SELECT * FROM SanPham WHERE MaSP = 'SP001'
+SELECT * FROM DonDatHang
+SELECT * FROM ChiTietDonHang
