@@ -8,21 +8,31 @@ CREATE PROCEDURE sp_checkBelowThreshold
     @isBelowThreshold BIT OUTPUT
 AS
 BEGIN
+    SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+    
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        -- Kiểm tra xem sản phẩm có dưới ngưỡng tồn kho tối thiểu hay không
+        IF EXISTS (
+            SELECT 1
+            FROM SanPham WITH (HOLDLOCK, ROWLOCK)
+            WHERE MaSP = @MaSP
+              AND SoLuongKho < SL_SP_TD * 0.7 -- Mức tồn tối thiểu = 70% SL_SP_TD
+        )
+        BEGIN
+            SET @isBelowThreshold = 1; -- Dưới ngưỡng
+        END
+        ELSE
+        BEGIN
+            SET @isBelowThreshold = 0; -- Không dưới ngưỡng
+        END
 
-    -- Kiểm tra xem sản phẩm có dưới ngưỡng tồn kho tối thiểu hay không
-    IF EXISTS (
-        SELECT 1
-        FROM SanPham
-        WHERE MaSP = @MaSP
-          AND SoLuongKho < SL_SP_TD * 0.7 -- Mức tồn tối thiểu = 70% SL_SP_TD
-    )
-    BEGIN
-        SET @isBelowThreshold = 1; -- Dưới ngưỡng
-    END
-    ELSE
-    BEGIN
-        SET @isBelowThreshold = 0; -- Không dưới ngưỡng
-    END
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
 --drop procedure sp_checkBelowThreshold
@@ -33,15 +43,15 @@ CREATE PROCEDURE sp_ReOrderStock
     @MaDDH NVARCHAR(50)
 AS
 BEGIN
-    SET NOCOUNT ON;
-
+    
+	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
     -- Biến để lưu kết quả kiểm tra dưới ngưỡng
     DECLARE @isBelowThreshold BIT;
 
     BEGIN TRANSACTION;
 
     BEGIN TRY
-        -- Gọi thủ tục phụ để kiểm tra sản phẩm có dưới ngưỡng tồn kho tối thiểu hay không
+        -- Gọi store proc phụ để kiểm tra sản phẩm có dưới ngưỡng tồn kho tối thiểu hay không
         EXEC sp_checkBelowThreshold @MaSP = @MaSP, @isBelowThreshold = @isBelowThreshold OUTPUT;
 
         -- Nếu sản phẩm dưới ngưỡng thì tiến hành đặt hàng
