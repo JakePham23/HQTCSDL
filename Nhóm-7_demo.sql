@@ -1,4 +1,110 @@
-﻿use ConvenientStore
+﻿USE ConvenientStore;
+GO
+
+-- Thiết lập để theo dõi deadlock
+DBCC TRACEON (1222, -1);
+GO
+
+-- Demo Lost Update khi số lượng sản phẩm sau khi update dưới ngưỡng nhưng đơn hàng
+-- sẽ không được đặt vì Sp_ReOrderStock đọc sai số lượng sản phẩm 
+
+CREATE OR ALTER PROCEDURE Sp_ReOrderStock 
+    @MaSP VARCHAR(50)
+AS
+BEGIN
+    SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
+    BEGIN TRANSACTION
+        DECLARE @SoLuongKho INT, @SL_SP_TD INT
+        
+        SELECT @SoLuongKho = SoLuongKho,
+               @SL_SP_TD = SL_SP_TD
+        FROM SanPham WITH (UPDLOCK, ROWLOCK)
+        WHERE MaSP = @MaSP
+
+        WAITFOR DELAY '00:00:05'
+
+        IF @SoLuongKho < @SL_SP_TD
+        BEGIN
+            DECLARE @MaDDH VARCHAR(50)
+            SET @MaDDH = CONCAT('DDH', FORMAT(GETDATE(), 'yyyyMMddHHmmss'))
+            
+            INSERT INTO DonDatHang(MaDDH, MaSP, NgayDat, SoLuongDat, MaNV, TrangThai)
+            VALUES(@MaDDH, @MaSP, GETDATE(), (@SL_SP_TD - @SoLuongKho) * 2, NULL, 'Pending')
+
+            PRINT N'ReOrderStock - Đã tạo đơn đặt hàng'
+        END
+        ELSE
+        BEGIN
+            PRINT N'ReOrderStock - Không cần tạo đơn đặt hàng'
+        END
+    COMMIT TRANSACTION
+END
+GO
+
+CREATE OR ALTER PROCEDURE Sp_ProcessingOrder
+   @MaDH INT,
+   @MaSP VARCHAR(50),
+   @SoLuong INT,
+   @MaNV INT,
+   @MaKH INT = NULL
+AS
+BEGIN
+   SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
+   BEGIN TRY
+       BEGIN TRANSACTION
+           DECLARE @SoLuongKho INT, @GiaNiemYet INT
+           SELECT @SoLuongKho = SoLuongKho, @GiaNiemYet = GiaNiemYet
+           FROM SanPham WITH (UPDLOCK)
+           WHERE MaSP = @MaSP
+
+           IF @SoLuongKho >= @SoLuong
+           BEGIN
+               PRINT N'Số lượng tồn kho trước khi cập nhật: ' + CAST(@SoLuongKho AS NVARCHAR(20))
+               
+               UPDATE SanPham
+               SET SoLuongKho = SoLuongKho - @SoLuong
+               WHERE MaSP = @MaSP
+               PRINT N'Đã cập nhật số lượng tồn kho'
+           
+               INSERT INTO ChiTietDonHang(MaDH, MaSP, SoLuong, DonGia)
+               VALUES(@MaDH, @MaSP, @SoLuong, @GiaNiemYet)
+
+               UPDATE DonHang 
+               SET TongTien = TongTien + (@GiaNiemYet * @SoLuong)
+               WHERE MaDH = @MaDH
+
+               COMMIT TRANSACTION
+           END
+           ELSE
+           BEGIN
+               ROLLBACK TRANSACTION
+               RAISERROR(N'Số lượng tồn không đủ', 16, 1)
+           END
+   END TRY
+   BEGIN CATCH
+       IF @@TRANCOUNT > 0
+           ROLLBACK TRANSACTION
+       
+       DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE()
+       DECLARE @ErrorSeverity INT = ERROR_SEVERITY()
+       DECLARE @ErrorState INT = ERROR_STATE()
+       RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState)
+   END CATCH
+END
+GO
+
+-- Reset data
+-- UPDATE SanPham SET SoLuongKho = 100 WHERE MaSP = 'SP001'
+-- UPDATE DonHang SET TongTien = 0 WHERE MaDH = 1
+-- DELETE FROM DonDatHang
+-- DELETE FROM ChiTietDonHang
+
+-- Chạy trong cửa sổ Query 1:
+EXEC Sp_ReOrderStock 'SP01'
+
+-- Chạy trong cửa sổ Query 2 (ngay sau khi Query 1 bắt đầu):
+EXEC Sp_ProcessingOrder 1, 'SP01', 60, 1, 2501011
+
 -- demo dirty read 1
 -- connect database 2 lần 2 tab khác nhau và chạy proc ở mỗi tab 
 -- demo lỗi khi insert thành công nhưng mà chưa commit có một giao tác khác
@@ -366,102 +472,201 @@ EXEC Sp_UpdateInfoProduct
 EXEC Sp_ProcessingOrder 1, 'SP01', 2, 1, 2501124
 
 -- Lost Update
+
 drop proc SP_GiftBirthdayVoucher
+
 CREATE PROCEDURE SP_GiftBirthdayVoucher
+
     @MaKH INT -- Input: Mã khách hàng
+
 AS
+
 BEGIN
+
     BEGIN TRANSACTION;
+
     SET TRANSACTION ISOLATION LEVEL UNCOMMITTED READ;
 
+
+
         -- Kiểm tra sự tồn tại của khách hàng
+
         IF NOT EXISTS (SELECT 1 FROM KhachHang WHERE MaKH = @MaKH)
+
         BEGIN
+
             ROLLBACK;
+
             RAISERROR ('Khách hàng không tồn tại', 16, 1);
+
             RETURN;
+
         END
+
+
 
         -- Kiểm tra ngày sinh nhật của khách hàng
+
         IF EXISTS (
+
 		SELECT 1 
+
 		FROM KhachHang 
+
 		WHERE MaKH = @MaKH 
+
 		AND MONTH(NgaySinh) = MONTH(GETDATE()) 
+
 		AND DAY(NgaySinh) = DAY(GETDATE())
+
 )
+
         BEGIN
+
             -- Khai báo các biến
+
             DECLARE @LoaiKH NVARCHAR(50);
+
 			DECLARE @TongTieuDung INT;
+
             DECLARE @QuaTang INT;
 
+
+
 			SELECT @TongTieuDung = SUM(DonHang.TongTien)
+
 			FROM DonHang
+
 			WHERE DonHang.NgayDat >= DATEADD(YEAR, -1, GETDATE()) -- Lọc từ một năm trước
+
 			AND DonHang.NgayDat <= GETDATE() -- Lọc đến ngày hiện tại
+
 			GROUP BY DonHang.MaKH;
+
             WAITFOR DELAY '00:00:20';
+
 			-- Kiểm tra loại khách hàng và xác định giá trị quà tặng
+
 			IF @TongTieuDung >= 50000000
+
 			BEGIN
+
 			    SET @LoaiKH = N'Kim cương';
+
 			    SET @QuaTang = 1200000; -- 1.2 triệu
+
 			END
+
 			ELSE IF @TongTieuDung >= 30000000
+
 			BEGIN
+
 			    SET @LoaiKH = N'Bạch kim';
+
 			    SET @QuaTang = 700000; -- 700 ngàn
+
 			END
+
 			ELSE IF @TongTieuDung >= 15000000
+
 			BEGIN
+
 			    SET @LoaiKH = N'Vàng';
+
 			    SET @QuaTang = 500000; -- 500 ngàn
+
 			END
+
 			ELSE IF @TongTieuDung >= 5000000
+
 			BEGIN
+
 			    SET @LoaiKH = N'Bạc';
+
 			    SET @QuaTang = 200000; -- 200 ngàn
+
 			END
+
 			ELSE IF @TongTieuDung >= 1000000
+
 			BEGIN
+
 			    SET @LoaiKH = N'Dồng';
+
 			    SET @QuaTang = 100000; -- 100 ngàn
+
 			END
+
             ELSE 
+
             BEGIN
+
                 ROLLBACK;
+
                 RAISERROR ('Khách hàng chưa đủ điều kiện để nhận phiếu mua hàng', 16, 1);
+
                 RETURN;
+
             END
 
+
+
 			-- Khai báo biến MaPhieu
+
 			DECLARE @MaPhieu NVARCHAR(50); 
+
 			SET @MaPhieu = CONCAT(@MaKH, 'PMHCVN', FORMAT(GETDATE(), 'yyyyMMddHHmmss'));
 
+
+
 			-- Cập nhật thông tin quà tặng trong bảng PhieuMuaHang
+
 			INSERT INTO PhieuMuaHang (MaPhieu, MaKH, QuaTang, NgayBatDau, NgayHetHan, TrangThai) 
+
 			VALUES (
+
 				@MaPhieu,         -- Mã phiếu
+
 				@MaKH,            -- Mã khách hàng
+
 				@QuaTang,         -- Giá trị quà tặng
+
 				GETDATE(),        -- Ngày bắt đầu (hôm nay - ngày sinh nhật)
+
 				DATEADD(DAY, 14, GETDATE()), -- Ngày hết hạn: 14 ngày sau ngày bắt đầu
+
 				N'Chưa sử dụng'            -- Trạng thái
+
 			);
 
+
+
             -- Ghi log thành công
+
             PRINT 'Đã tặng quà cho khách hàng';
-        END
-        ELSE
-        BEGIN
-            ROLLBACK;
-            RAISERROR ('Hôm nay không phải sinh nhật của khách hàng', 16, 1);
-            RETURN;
+
         END
 
+        ELSE
+
+        BEGIN
+
+            ROLLBACK;
+
+            RAISERROR ('Hôm nay không phải sinh nhật của khách hàng', 16, 1);
+
+            RETURN;
+
+        END
+
+
+
         -- Commit transaction
+
         COMMIT;
+
 END;
+
 EXEC SP_GiftBirthdayVoucher @MaKH = 22120223;
+
 EXEC Sp_ProcessingOrder 2, 'SP01', 10, 1, 22120223;

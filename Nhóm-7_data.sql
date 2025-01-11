@@ -1,5 +1,4 @@
-﻿
-USE ConvenientStore;
+﻿USE ConvenientStore;
 
 INSERT INTO NhanVien(MaNV, HoTen, GioiTinh, SDT, NgaySinh, LoaiNV)  Values (1, 'Nguyen Van A', 'F', '01234556789', '01/01/2001', 'PT');
 INSERT INTO NhanVien(MaNV, HoTen, GioiTinh, SDT, NgaySinh, LoaiNV)  Values (2, 'Nguyen Van B', 'F', '02234556789', '01/01/2002', 'PT');

@@ -1,5 +1,228 @@
-﻿﻿
-﻿use ConvenientStore
+﻿USE ConvenientStore
+GO
+
+CREATE PROCEDURE sp_CheckBelowThreshold
+    @MaSP VARCHAR(50),
+    @IsBelow BIT OUTPUT
+AS
+BEGIN
+    SET TRANSACTION ISOLATION LEVEL SERIALIZABLE
+    BEGIN TRANSACTION
+        SELECT @IsBelow = CASE 
+            WHEN SoLuongKho <= SL_SP_TD THEN 1 
+            ELSE 0 
+        END
+        FROM SanPham WITH (UPDLOCK)
+        WHERE MaSP = @MaSP
+    COMMIT TRANSACTION
+END
+GO
+
+CREATE OR ALTER PROCEDURE Sp_ReOrderStock 
+    @MaSP VARCHAR(50)
+AS
+BEGIN
+    SET TRANSACTION ISOLATION LEVEL SERIALIZABLE
+    BEGIN TRANSACTION
+        DECLARE @IsBelow BIT
+        
+        EXEC sp_CheckBelowThreshold @MaSP, @IsBelow OUTPUT
+
+        IF @IsBelow = 1
+        BEGIN
+            DECLARE @SoLuongKho INT, @SL_SP_TD INT
+            
+            SELECT @SoLuongKho = SoLuongKho,
+                   @SL_SP_TD = SL_SP_TD
+            FROM SanPham WITH (UPDLOCK, ROWLOCK)
+            WHERE MaSP = @MaSP
+
+            WAITFOR DELAY '00:00:01'
+            
+            DECLARE @MaDDH VARCHAR(50)
+            SET @MaDDH = CONCAT('DDH', FORMAT(GETDATE(), 'yyyyMMddHHmmss'))
+            
+            INSERT INTO DonDatHang(MaDDH, MaSP, NgayDat, SoLuongDat, MaNV, TrangThai)
+            VALUES(@MaDDH, @MaSP, GETDATE(), (@SL_SP_TD - @SoLuongKho) * 2, NULL, 'Pending')
+        END
+    COMMIT TRANSACTION
+END
+GO
+
+CREATE OR ALTER PROCEDURE findBestPromotion
+    @MaSP VARCHAR(50),
+    @MaKH INT = NULL,
+    @SoLuong INT
+AS
+BEGIN
+    SET TRANSACTION ISOLATION LEVEL SERIALIZABLE
+    BEGIN TRANSACTION
+        DECLARE @BestDiscount INT = 0
+        DECLARE @BestPromotionType NVARCHAR(50) = NULL
+        DECLARE @BestMaKM INT = NULL
+
+        CREATE TABLE #ValidPromotions (
+            MaKM INT,
+            TiLeGiam INT,
+            LoaiKM INT
+        )
+
+        DECLARE @CurrentDate DATE = GETDATE()
+
+        -- Flash Sale
+        INSERT INTO #ValidPromotions
+        SELECT 
+            km.MaKM,
+            km.TiLeGiam,
+            km.LoaiKM
+        FROM KhuyenMai km WITH (UPDLOCK)
+        JOIN FlashSale fs ON fs.MaKM = km.MaKM
+        WHERE fs.MaSP = @MaSP 
+            AND @CurrentDate BETWEEN km.NgayBatDau AND km.NgayKetThuc
+            AND km.SoLuong >= @SoLuong
+            AND km.LoaiKM = 1
+
+        -- Combo Sale
+        INSERT INTO #ValidPromotions
+        SELECT 
+            km.MaKM,
+            km.TiLeGiam,
+            km.LoaiKM
+        FROM KhuyenMai km WITH (UPDLOCK)
+        JOIN ComboSale cs ON cs.MaKM = km.MaKM
+        WHERE cs.MaSP = @MaSP 
+            AND @CurrentDate BETWEEN km.NgayBatDau AND km.NgayKetThuc
+            AND km.SoLuong >= @SoLuong
+            AND km.LoaiKM = 2
+
+        -- Member Sale
+        IF @MaKH IS NOT NULL
+        BEGIN
+            INSERT INTO #ValidPromotions
+            SELECT 
+                km.MaKM,
+                km.TiLeGiam,
+                km.LoaiKM
+            FROM KhuyenMai km WITH (UPDLOCK)
+            JOIN MemberSale ms ON ms.MaKM = km.MaKM
+            WHERE ms.MaKH = @MaKH
+                AND @CurrentDate BETWEEN km.NgayBatDau AND km.NgayKetThuc
+                AND km.SoLuong >= @SoLuong
+                AND km.LoaiKM = 3
+        END
+
+        SELECT TOP 1
+            @BestMaKM = MaKM,
+            @BestDiscount = TiLeGiam
+        FROM #ValidPromotions
+        ORDER BY TiLeGiam DESC
+
+        IF @BestMaKM IS NOT NULL
+        BEGIN
+            UPDATE KhuyenMai
+            SET SoLuong = SoLuong - @SoLuong
+            WHERE MaKM = @BestMaKM
+        END
+
+        SELECT 
+            @BestMaKM as MaKM,
+            CASE 
+                WHEN @BestMaKM IS NULL THEN NULL
+                ELSE (SELECT LoaiKM FROM KhuyenMai WHERE MaKM = @BestMaKM)
+            END as LoaiKhuyenMai,
+            @BestDiscount as TiLeGiam,
+            CASE 
+                WHEN @BestMaKM IS NULL THEN N'Không có khuyến mãi phù hợp'
+                ELSE N'Khuyến mãi hợp lệ'
+            END as TrangThai
+
+        DROP TABLE #ValidPromotions
+    COMMIT TRANSACTION
+END
+GO
+
+CREATE OR ALTER PROCEDURE Sp_ProcessingOrder
+   @MaDH INT,
+   @MaSP VARCHAR(50),
+   @SoLuong INT,
+   @MaNV INT,
+   @MaKH INT = NULL
+AS
+BEGIN
+   SET TRANSACTION ISOLATION LEVEL SERIALIZABLE
+   BEGIN TRY
+       BEGIN TRANSACTION
+           DECLARE @SoLuongKho INT, @GiaNiemYet INT
+           SELECT @SoLuongKho = SoLuongKho, @GiaNiemYet = GiaNiemYet
+           FROM SanPham WITH (UPDLOCK)
+           WHERE MaSP = @MaSP
+
+           IF @SoLuongKho >= @SoLuong
+           BEGIN
+               DECLARE @BestMaKM INT, @BestDiscount INT
+               
+               CREATE TABLE #BestPromotion (
+                   MaKM INT,
+                   LoaiKhuyenMai INT,   
+                   TiLeGiam INT,
+                   TrangThai NVARCHAR(100)
+               )
+               
+               INSERT INTO #BestPromotion
+               EXEC findBestPromotion @MaSP, @MaKH, @SoLuong
+               
+               SELECT @BestMaKM = MaKM, @BestDiscount = TiLeGiam 
+               FROM #BestPromotion
+               
+               DECLARE @FinalPrice INT = @GiaNiemYet
+               IF @BestDiscount > 0
+                   SET @FinalPrice = @GiaNiemYet * (100 - @BestDiscount) / 100
+
+               PRINT N'Giá niêm yết: ' + CAST(@GiaNiemYet AS NVARCHAR(20))
+               PRINT N'Discount: ' + CAST(@BestDiscount AS NVARCHAR(20)) + '%'
+               PRINT N'Giá sau giảm: ' + CAST(@FinalPrice AS NVARCHAR(20))
+
+               IF NOT EXISTS (SELECT 1 FROM DonHang WHERE MaDH = @MaDH)
+               BEGIN
+                   INSERT INTO DonHang(MaDH, MaKH, MaNVDat, NgayDat, TongTien)
+                   VALUES(@MaDH, @MaKH, @MaNV, GETDATE(), 0)
+               END
+			
+               UPDATE SanPham
+               SET SoLuongKho = SoLuongKho - @SoLuong
+               WHERE MaSP = @MaSP
+           
+               EXEC Sp_ReOrderStock @MaSP
+
+               INSERT INTO ChiTietDonHang(MaDH, MaSP, SoLuong, DonGia)
+               VALUES(@MaDH, @MaSP, @SoLuong, @FinalPrice)
+
+               UPDATE DonHang 
+               SET TongTien = TongTien + (@FinalPrice * @SoLuong)
+               WHERE MaDH = @MaDH
+
+               DROP TABLE #BestPromotion
+               COMMIT TRANSACTION
+           END
+           ELSE
+           BEGIN
+               ROLLBACK TRANSACTION
+               RAISERROR(N'Số lượng tồn không đủ', 16, 1)
+           END
+   END TRY
+   BEGIN CATCH
+       IF @@TRANCOUNT > 0
+           ROLLBACK TRANSACTION
+       
+       DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE()
+       DECLARE @ErrorSeverity INT = ERROR_SEVERITY()
+       DECLARE @ErrorState INT = ERROR_STATE()
+
+       RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState)
+   END CATCH
+END
+GO
+
 -- Bộ phận chăm sóc khách hàng
 CREATE PROCEDURE SP_InsertNewUser 
     @MaKH INT,
@@ -77,7 +300,7 @@ BEGIN
 		AND MONTH(NgaySinh) = MONTH(GETDATE()) 
 		AND DAY(NgaySinh) = DAY(GETDATE())
 )
-        BEGIN
+       BEGIN
             -- Khai báo các biến
             DECLARE @LoaiKH NVARCHAR(50);
 			DECLARE @TongTieuDung INT;
@@ -88,7 +311,6 @@ BEGIN
 			WHERE DonHang.NgayDat >= DATEADD(YEAR, -1, GETDATE()) -- Lọc từ một năm trước
 			AND DonHang.NgayDat <= GETDATE() -- Lọc đến ngày hiện tại
 			GROUP BY DonHang.MaKH;
-
 			-- Kiểm tra loại khách hàng và xác định giá trị quà tặng
 			IF @TongTieuDung >= 50000000
 			BEGIN
@@ -230,102 +452,6 @@ BEGIN
 END;
 
 -- Bộ phận quản lý kho
--- sp_checkBelowThreshold: Kiểm tra xem sản phẩm có dưới mức tồn tối thiểu không
-CREATE PROCEDURE sp_checkBelowThreshold
-    @MaSP NVARCHAR(50),
-    @isBelowThreshold BIT OUTPUT
-AS
-BEGIN
-    SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-    
-    BEGIN TRANSACTION;
-    BEGIN TRY
-        -- Kiểm tra xem sản phẩm có dưới ngưỡng tồn kho tối thiểu hay không
-        IF EXISTS (
-            SELECT 1
-            FROM SanPham WITH (HOLDLOCK, ROWLOCK)
-            WHERE MaSP = @MaSP
-              AND SoLuongKho < SL_SP_TD * 0.7 -- Mức tồn tối thiểu = 70% SL_SP_TD
-        )
-        BEGIN
-            SET @isBelowThreshold = 1; -- Dưới ngưỡng
-        END
-        ELSE
-        BEGIN
-            SET @isBelowThreshold = 0; -- Không dưới ngưỡng
-        END
-
-        COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH
-END
-GO
---drop procedure sp_checkBelowThreshold
-
--- sp_ReOrderStock: Đặt hàng nếu số lượng sản phẩm dưới mức tồn tối thiểu
-CREATE PROCEDURE sp_ReOrderStock
-    @MaSP NVARCHAR(50),
-    @MaDDH NVARCHAR(50)
-AS
-BEGIN
-    
-	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-    -- Biến để lưu kết quả kiểm tra dưới ngưỡng
-    DECLARE @isBelowThreshold BIT;
-
-    BEGIN TRANSACTION;
-
-    BEGIN TRY
-        -- Gọi store proc phụ để kiểm tra sản phẩm có dưới ngưỡng tồn kho tối thiểu hay không
-        EXEC sp_checkBelowThreshold @MaSP = @MaSP, @isBelowThreshold = @isBelowThreshold OUTPUT;
-
-        -- Nếu sản phẩm dưới ngưỡng thì tiến hành đặt hàng
-        IF @isBelowThreshold = 1
-        BEGIN
-            -- Tính toán số lượng cần đặt
-            DECLARE @SoLuongDat INT;
-            SELECT @SoLuongDat = SL_SP_TD - SoLuongKho
-            FROM SanPham WITH (HOLDLOCK, ROWLOCK)
-            WHERE MaSP = @MaSP;
-
-            -- Thêm thông tin vào bảng DonDatHang
-            INSERT INTO DonDatHang (MaDDH, MaSP, NgayDat, NgayNhanHangDuKien, TrangThai, SoLuongDat, DonGia, MaNV)
-            SELECT
-                @MaDDH, -- Mã đơn đặt hàng
-                @MaSP, -- Mã sản phẩm
-                GETDATE(), -- Ngày đặt
-                DATEADD(DAY, 7, GETDATE()), -- Ngày nhận dự kiến (7 ngày sau ngày đặt)
-                'Đang chờ', -- Trạng thái
-                @SoLuongDat, -- Số lượng đặt
-                GiaNiemYet, -- Giá niêm yết
-                NULL -- Mã nhân viên, có thể NULL nếu chưa gán
-            FROM SanPham
-            WHERE MaSP = @MaSP;
-
-        END
-        ELSE
-        BEGIN
-            -- Nếu không dưới ngưỡng, không làm gì cả
-            PRINT 'Sản phẩm không dưới ngưỡng, không cần đặt hàng.';
-        END
-
-        -- Commit transaction nếu không có lỗi
-        COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        -- Rollback transaction nếu có lỗi xảy ra
-        ROLLBACK TRANSACTION;
-
-        -- Hiển thị thông báo lỗi
-        THROW;
-    END CATCH;
-END
-GO
-
---drop procedure sp_ReOrderStock
 DECLARE @MaDDH NVARCHAR(50) = 'DDH003'; -- Mã đơn đặt hàng
 EXEC sp_ReOrderStock @MaSP = 'ABC', @MaDDH = @MaDDH;
 GO
