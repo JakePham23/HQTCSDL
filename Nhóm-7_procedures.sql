@@ -1,5 +1,4 @@
-﻿
-CREATE PROCEDURE SP_InsertNewUser 
+﻿CREATE PROCEDURE SP_InsertNewUser 
     @MaKH INT,
     @HoTen NVARCHAR(255),
     @SDT VARCHAR(12),
@@ -10,7 +9,7 @@ BEGIN
     BEGIN TRANSACTION InsertNewUser;
     
     -- Set the transaction isolation level before the transaction block
-    SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+    SET TRANSACTION ISOLATION LEVEL Repeatable Read;
         -- Check if the customer already exists
         IF EXISTS (SELECT 1 FROM KhachHang WHERE MaKH = @MaKH)
         BEGIN
@@ -32,7 +31,7 @@ BEGIN
         VALUES (@MaKH, @HoTen, @SDT, @NgaySinh, @MaNV);
 
         -- Optional delay (for testing purposes)
-        WAITFOR DELAY '00:00:15';
+        WAITFOR DELAY '00:00:20';
 
         COMMIT TRANSACTION InsertNewUser;
         RETURN 0; -- Success
@@ -44,7 +43,7 @@ create proc SP_FindUserById
 as
 begin
     BEGIN TRANSACTION FindUserById
-	    SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+	    SET TRANSACTION ISOLATION LEVEL Repeatable Read;
 		if not exists (Select 1 from KhachHang where MaKH = @MaKH)
 		begin
 			RAISERROR(N'Khách hàng chưa đăng kí', 16, 1)
@@ -52,38 +51,6 @@ begin
 			RETURN 2
 		end
 		SELECT * FROM KhachHang where MaKH = @MaKH
-	WAITFOR DELAY '00:00:5';
 	COMMIT TRANSACTION InsertNewUser;
-    RETURN 0;
-end
-
-create proc SP_UpdateInfoProduct
-@MaSP INT,
-@TenSP NVARCHAR(255),
-@MoTa NVARCHAR(255),
-@GiaNiemYet INT,
-@SoLuongKho INT,
-@MaLoai INT
-as 
-begin
-	BEGIN TRANSACTION UpdateInfoProduct
-	SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;  
-	
-	if not exists (select 1 from SanPham where MaSP = @MaSP)
-	begin
-		raiserror(N'Sản phẩm không tồn tại trong hệ thông', 16, 1)
-		rollback tran UpdateInfoProduct
-		return 2
-	end
-	UPDATE SanPham
-        SET 
-            TenSP = @TenSP,
-            MoTa = @MoTa,
-            GiaNiemYet = @GiaNiemYet,
-            SoLuongKho = @SoLuongKho,
-            MaLoai = @MaLoai
-        WHERE MaSP = @MaSP;
-	WAITFOR DELAY '00:00:15';
-	COMMIT TRANSACTION UpdateInfoProduct;
     RETURN 0;
 end
