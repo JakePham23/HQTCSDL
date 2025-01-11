@@ -44,6 +44,7 @@ BEGIN
             
             INSERT INTO DonDatHang(MaDDH, MaSP, NgayDat, SoLuongDat, MaNV, TrangThai)
             VALUES(@MaDDH, @MaSP, GETDATE(), (@SL_SP_TD - @SoLuongKho) * 2, NULL, 'Pending')
+            PRINT N'Đã tạo đơn đặt hàng ' + @MaDDH
         END
     COMMIT TRANSACTION
 END
