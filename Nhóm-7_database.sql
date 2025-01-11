@@ -1,4 +1,4 @@
-﻿use master;
+use master;
 
 create database ConvenientStore;
 Go
