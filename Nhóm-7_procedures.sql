@@ -70,22 +70,51 @@ BEGIN
         END
 
         -- Kiểm tra ngày sinh nhật của khách hàng
-        IF EXISTS (SELECT 1 FROM KhachHang WITH (READCOMMITTEDLOCK) 
-                   WHERE MaKH = @MaKH AND CONVERT(DATE, NgaySinh) = CONVERT(DATE, GETDATE()))
+        IF EXISTS (
+		SELECT 1 
+		FROM KhachHang WITH (READCOMMITTEDLOCK) 
+		WHERE MaKH = @MaKH 
+		AND MONTH(NgaySinh) = MONTH(GETDATE()) 
+		AND DAY(NgaySinh) = DAY(GETDATE())
+)
         BEGIN
             -- Khai báo các biến
             DECLARE @LoaiKH NVARCHAR(50);
+			DECLARE @TongTieuDung INT;
             DECLARE @QuaTang INT;
 
-            -- Lấy thông tin loại khách hàng
-            SELECT @LoaiKH = LoaiKH FROM KhachHang WHERE MaKH = @MaKH;
+			SELECT @TongTieuDung = SUM(DonHang.TongTien)
+			FROM DonHang
+			WHERE DonHang.NgayDat >= DATEADD(YEAR, -1, GETDATE()) -- Lọc từ một năm trước
+			AND DonHang.NgayDat <= GETDATE() -- Lọc đến ngày hiện tại
+			GROUP BY DonHang.MaKH;
 
-            -- Xác định giá trị quà tặng
-            IF (@LoaiKH = N'Kim cương') SET @QuaTang = 1200000;
-            ELSE IF (@LoaiKH = N'Bạch Kim') SET @QuaTang = 700000;
-            ELSE IF (@LoaiKH = N'Vàng') SET @QuaTang = 500000;
-            ELSE IF (@LoaiKH = N'Bạc') SET @QuaTang = 200000;
-            ELSE IF (@LoaiKH = N'Đồng') SET @QuaTang = 100000;
+			-- Kiểm tra loại khách hàng và xác định giá trị quà tặng
+			IF @TongTieuDung >= 50000000
+			BEGIN
+			    SET @LoaiKH = N'Kim cương';
+			    SET @QuaTang = 1200000; -- 1.2 triệu
+			END
+			ELSE IF @TongTieuDung >= 30000000
+			BEGIN
+			    SET @LoaiKH = N'Bạch kim';
+			    SET @QuaTang = 700000; -- 700 ngàn
+			END
+			ELSE IF @TongTieuDung >= 15000000
+			BEGIN
+			    SET @LoaiKH = N'Vàng';
+			    SET @QuaTang = 500000; -- 500 ngàn
+			END
+			ELSE IF @TongTieuDung >= 5000000
+			BEGIN
+			    SET @LoaiKH = N'Bạc';
+			    SET @QuaTang = 200000; -- 200 ngàn
+			END
+			ELSE IF @TongTieuDung >= 1000000
+			BEGIN
+			    SET @LoaiKH = N'Dồng';
+			    SET @QuaTang = 100000; -- 100 ngàn
+			END
             ELSE 
             BEGIN
                 ROLLBACK;
@@ -121,6 +150,7 @@ BEGIN
         -- Commit transaction
         COMMIT;
 END;
+
 GO
 
 

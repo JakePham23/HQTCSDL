@@ -364,3 +364,104 @@ EXEC Sp_UpdateInfoProduct
     @SoLuongKho = 100,      -- Số lượng kho mới
     @MaLoai = 'L01';       -- Mã loại sản phẩm mới
 EXEC Sp_ProcessingOrder 1, 'SP01', 2, 1, 2501124
+
+-- Lost Update
+drop proc SP_GiftBirthdayVoucher
+CREATE PROCEDURE SP_GiftBirthdayVoucher
+    @MaKH INT -- Input: Mã khách hàng
+AS
+BEGIN
+    BEGIN TRANSACTION;
+    SET TRANSACTION ISOLATION LEVEL UNCOMMITTED READ;
+
+        -- Kiểm tra sự tồn tại của khách hàng
+        IF NOT EXISTS (SELECT 1 FROM KhachHang WHERE MaKH = @MaKH)
+        BEGIN
+            ROLLBACK;
+            RAISERROR ('Khách hàng không tồn tại', 16, 1);
+            RETURN;
+        END
+
+        -- Kiểm tra ngày sinh nhật của khách hàng
+        IF EXISTS (
+		SELECT 1 
+		FROM KhachHang 
+		WHERE MaKH = @MaKH 
+		AND MONTH(NgaySinh) = MONTH(GETDATE()) 
+		AND DAY(NgaySinh) = DAY(GETDATE())
+)
+        BEGIN
+            -- Khai báo các biến
+            DECLARE @LoaiKH NVARCHAR(50);
+			DECLARE @TongTieuDung INT;
+            DECLARE @QuaTang INT;
+
+			SELECT @TongTieuDung = SUM(DonHang.TongTien)
+			FROM DonHang
+			WHERE DonHang.NgayDat >= DATEADD(YEAR, -1, GETDATE()) -- Lọc từ một năm trước
+			AND DonHang.NgayDat <= GETDATE() -- Lọc đến ngày hiện tại
+			GROUP BY DonHang.MaKH;
+            WAITFOR DELAY '00:00:20';
+			-- Kiểm tra loại khách hàng và xác định giá trị quà tặng
+			IF @TongTieuDung >= 50000000
+			BEGIN
+			    SET @LoaiKH = N'Kim cương';
+			    SET @QuaTang = 1200000; -- 1.2 triệu
+			END
+			ELSE IF @TongTieuDung >= 30000000
+			BEGIN
+			    SET @LoaiKH = N'Bạch kim';
+			    SET @QuaTang = 700000; -- 700 ngàn
+			END
+			ELSE IF @TongTieuDung >= 15000000
+			BEGIN
+			    SET @LoaiKH = N'Vàng';
+			    SET @QuaTang = 500000; -- 500 ngàn
+			END
+			ELSE IF @TongTieuDung >= 5000000
+			BEGIN
+			    SET @LoaiKH = N'Bạc';
+			    SET @QuaTang = 200000; -- 200 ngàn
+			END
+			ELSE IF @TongTieuDung >= 1000000
+			BEGIN
+			    SET @LoaiKH = N'Dồng';
+			    SET @QuaTang = 100000; -- 100 ngàn
+			END
+            ELSE 
+            BEGIN
+                ROLLBACK;
+                RAISERROR ('Khách hàng chưa đủ điều kiện để nhận phiếu mua hàng', 16, 1);
+                RETURN;
+            END
+
+			-- Khai báo biến MaPhieu
+			DECLARE @MaPhieu NVARCHAR(50); 
+			SET @MaPhieu = CONCAT(@MaKH, 'PMHCVN', FORMAT(GETDATE(), 'yyyyMMddHHmmss'));
+
+			-- Cập nhật thông tin quà tặng trong bảng PhieuMuaHang
+			INSERT INTO PhieuMuaHang (MaPhieu, MaKH, QuaTang, NgayBatDau, NgayHetHan, TrangThai) 
+			VALUES (
+				@MaPhieu,         -- Mã phiếu
+				@MaKH,            -- Mã khách hàng
+				@QuaTang,         -- Giá trị quà tặng
+				GETDATE(),        -- Ngày bắt đầu (hôm nay - ngày sinh nhật)
+				DATEADD(DAY, 14, GETDATE()), -- Ngày hết hạn: 14 ngày sau ngày bắt đầu
+				N'Chưa sử dụng'            -- Trạng thái
+			);
+
+            -- Ghi log thành công
+            PRINT 'Đã tặng quà cho khách hàng';
+        END
+        ELSE
+        BEGIN
+            ROLLBACK;
+            RAISERROR ('Hôm nay không phải sinh nhật của khách hàng', 16, 1);
+            RETURN;
+        END
+
+        -- Commit transaction
+        COMMIT;
+END;
+EXEC SP_GiftBirthdayVoucher @MaKH = 22120223;
+EXEC Sp_ProcessingOrder 2, 'SP01', 10, 1, 22120223;
