@@ -343,14 +343,14 @@ BEGIN
     SELECT @MaKM = ISNULL(MAX(MaKM), 0) + 1 FROM KhuyenMai;
 
     -- 4. Thêm vào bảng KhuyenMai
-    INSERT INTO KhuyenMai (MaKM, MaSP, LoaiKM, TenKM, NgayBatDau, NgayKetThuc)
-    VALUES (@MaKM, @MaSP, @LoaiKM, @TenKM, @NgayBatDau, @NgayKetThuc);
+    INSERT INTO KhuyenMai (MaKM, LoaiKM, TenKM, NgayBatDau, NgayKetThuc)
+    VALUES (@MaKM, @LoaiKM, @TenKM, @NgayBatDau, @NgayKetThuc);
 
     -- 5. Thêm dữ liệu vào bảng chi tiết dựa trên loại khuyến mãi
     IF @LoaiKM = 1 -- FlashSale
     BEGIN
-        INSERT INTO FlashSale (LoaiKM, TiLeGiam, SoLuong, MaKM)
-        VALUES (@LoaiKM, @TiLeGiam, @SoLuong, @MaKM);
+        INSERT INTO FlashSale (MaKM, MaSP)
+        VALUES (@MaKM, @MaSP);
 
         IF @@ROWCOUNT = 0
         BEGIN
@@ -361,11 +361,11 @@ BEGIN
     END
     ELSE IF @LoaiKM = 2 -- ComboSale
     BEGIN
-        INSERT INTO ComboSale (LoaiKM, TiLeGiam, SoLuong, MaKM, MaSP)
-        VALUES (@LoaiKM, @TiLeGiam, @SoLuong, @MaKM, @MaSP);
+        INSERT INTO ComboSale (MaKM, MaSP)
+        VALUES (@MaKM, @MaSP);
 
-		INSERT INTO ComboSale (LoaiKM, TiLeGiam, SoLuong, MaKM, MaSP)
-        VALUES (@LoaiKM, @TiLeGiam, @SoLuong, @MaKM, @MaSP2);
+		INSERT INTO ComboSale (MaKM, MaSP)
+        VALUES (@MaKM, @MaSP2);
 
         IF @@ROWCOUNT = 0
         BEGIN
@@ -383,8 +383,8 @@ BEGIN
             RETURN;
         END
 
-        INSERT INTO MemberSale (MaKH, MucThanThiet, TiLeGiam, SoLuong, MaKM)
-        VALUES (NULL, @MucThanThiet, @TiLeGiam, @SoLuong, @MaKM);
+        INSERT INTO MemberSale (MaKH, MucThanThiet, MaKM)
+        VALUES (NULL, @MucThanThiet, @MaKM);
 
         IF @@ROWCOUNT = 0
         BEGIN
