@@ -20,7 +20,7 @@ INSERT INTO SanPham VALUES
 ('SP003', N'Sữa tắm', 55000, 45, 100, 'LSP03', N'Mô tả');
 
 INSERT INTO DonHang VALUES
-(1, 1, 1, '2025-01-10', 600000);
+(1, 1, 1, '2025-01-10', 0);
 
 -- 1. Flash Sale
 INSERT INTO KhuyenMai (MaKM, MaSP, LoaiKM, TenKM, NgayBatDau, NgayKetThuc) VALUES
@@ -28,8 +28,8 @@ INSERT INTO KhuyenMai (MaKM, MaSP, LoaiKM, TenKM, NgayBatDau, NgayKetThuc) VALUE
 (2, 'SP002', 1, N'Flash Sale Snack', '2025-01-01', '2025-12-31');
 
 INSERT INTO FlashSale (MaKM, LoaiKM, TiLeGiam, SoLuong) VALUES
-(1, 1, 30, 5),  -- Giảm 30% cho Coca khi mua từ 5 sp
-(2, 1, 25, 3);  -- Giảm 25% cho Snack khi mua từ 3 sp
+(1, 1, 30, 100), 
+(2, 1, 25, 100);  
 
 -- 2. Combo Sale
 INSERT INTO KhuyenMai (MaKM, MaSP, LoaiKM, TenKM, NgayBatDau, NgayKetThuc) VALUES
@@ -37,8 +37,8 @@ INSERT INTO KhuyenMai (MaKM, MaSP, LoaiKM, TenKM, NgayBatDau, NgayKetThuc) VALUE
 (4, 'SP003', 2, N'Combo Mì', '2025-01-01', '2025-12-31');
 
 INSERT INTO ComboSale (MaKM, LoaiKM, TiLeGiam, SoLuong) VALUES
-(3, 2, 40, 10),  -- Giảm 40% khi mua 10 Coca
-(4, 2, 35, 24);  -- Giảm 35% khi mua 24 mì
+(3, 2, 40, 100),  
+(4, 2, 35, 100);  
 
 -- 3. Member Sale
 INSERT INTO KhuyenMai (MaKM, MaSP, LoaiKM, TenKM, NgayBatDau, NgayKetThuc) VALUES
@@ -46,5 +46,5 @@ INSERT INTO KhuyenMai (MaKM, MaSP, LoaiKM, TenKM, NgayBatDau, NgayKetThuc) VALUE
 (6, 'SP001', 3, N'Member Sale Coca - Bạc', '2025-01-01', '2025-12-31');
 
 INSERT INTO MemberSale (MaKM, MucThanThiet, TiLeGiam, SoLuong) VALUES
-(5, N'Vàng', 50, 1),  -- Giảm 50% cho khách hàng Vàng
-(6, N'Bạc', 35, 1);   -- Giảm 35% cho khách hàng Bạc
+(5, N'Vàng', 50, 100), 
+(6, N'Bạc', 35, 100);   
