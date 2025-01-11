@@ -59,7 +59,7 @@ begin
 			RETURN 2
 		end
 		SELECT * FROM KhachHang where MaKH = @MaKH
-	COMMIT TRANSACTION InsertNewUser;
+	COMMIT TRANSACTION FindUserById;
     RETURN 0;
 end
 	
