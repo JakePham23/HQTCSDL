@@ -270,8 +270,4 @@ select * from DonDatHang
 select * from SanPham
 
 
-<<<<<<< HEAD
 INSERT INTO SanPham(MaSP, TenSP, GiaNiemYet, SoLuongKho, SL_SP_TD, MaLoai) VALUES ('DEF', 'DienThoaiIP', 1234, 20, 100, 'ABC')
-=======
-INSERT INTO SanPham(MaSP, TenSP, GiaNiemYet, SoLuongKho, SL_SP_TD, MaLoai) VALUES ('DEF', 'DienThoaiIP', 1234, 20, 100, 'ABC')
->>>>>>> 725b467e37321eff7744d231ecad573206967fd1
