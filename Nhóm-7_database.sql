@@ -1,7 +1,5 @@
 ﻿use master;
 
-drop database if exists ConvenientStore;
-
 create database ConvenientStore;
 Go
 
