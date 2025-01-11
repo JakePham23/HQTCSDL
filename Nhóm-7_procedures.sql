@@ -645,4 +645,4 @@ EXEC Sp_UpdateInfoProduct
     @TenSP = N'Tên sản phẩm mới', -- Tên sản phẩm mới
     @GiaNiemYet = 1500000,  -- Giá niêm yết mới
     @SoLuongKho = 100,      -- Số lượng kho mới
-    @MaLoai = 'L001';       -- Mã loại sản phẩm mới
+    @MaLoai = 'L001';       -- Mã loại sản phẩm mới 
