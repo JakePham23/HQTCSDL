@@ -190,7 +190,6 @@ BEGIN
                PRINT N'Discount: ' + CAST(@BestDiscount AS NVARCHAR(20)) + '%'
                PRINT N'Giá sau giảm: ' + CAST(@FinalPrice AS NVARCHAR(20))
 
-               -- Di chuyển phần tạo DonHang lên trước
                IF NOT EXISTS (SELECT 1 FROM DonHang WHERE MaDH = @MaDH)
                BEGIN
                    INSERT INTO DonHang(MaDH, MaKH, MaNVDat, NgayDat, TongTien)
