@@ -1,4 +1,4 @@
-
+﻿
 ﻿use ConvenientStore
 -- Bộ phận chăm sóc khách hàng
 CREATE PROCEDURE SP_InsertNewUser 
@@ -245,14 +245,16 @@ INSERT INTO SanPham(MaSP, TenSP, GiaNiemYet, SoLuongKho, SL_SP_TD, MaLoai) VALUE
 
 -- QL Ngành Hàng 
 
-CREATE or ALTER PROCEDURE Sp_AddPromotion
+CREATE OR ALTER PROCEDURE Sp_AddPromotion
     @MaSP VARCHAR(50),
+	@MaSP2 VARCHAR(50),
     @NgayBatDau DATE,
     @NgayKetThuc DATE,
     @TenKM NVARCHAR(50),
-	@LoaiKM INT,
+    @LoaiKM INT, -- 1: FlashSale, 2: ComboSale, 3: MemberSale
     @TiLeGiam INT,
-    @SoLuong INT
+    @SoLuong INT,
+    @MucThanThiet NVARCHAR(50) = NULL -- Chỉ áp dụng cho MemberSale
 AS
 BEGIN
     BEGIN TRANSACTION;
@@ -279,30 +281,52 @@ BEGIN
     INSERT INTO KhuyenMai (MaKM, MaSP, LoaiKM, TenKM, NgayBatDau, NgayKetThuc)
     VALUES (@MaKM, @MaSP, @LoaiKM, @TenKM, @NgayBatDau, @NgayKetThuc);
 
-    -- 3.1 Thêm vào khuyến mãi FlashSale hoặc ComboSale
-    IF @LoaiKM = 1
+    -- 5. Thêm dữ liệu vào bảng chi tiết dựa trên loại khuyến mãi
+    IF @LoaiKM = 1 -- FlashSale
     BEGIN
         INSERT INTO FlashSale (LoaiKM, TiLeGiam, SoLuong, MaKM)
         VALUES (@LoaiKM, @TiLeGiam, @SoLuong, @MaKM);
-		-- Kiểm tra sự thành công của lệnh INSERT
-		IF @@ROWCOUNT = 0
-		BEGIN
-			PRINT 'Thêm vào FlashSale không thành công';
-			ROLLBACK TRANSACTION;
-			RETURN;
-		END
+
+        IF @@ROWCOUNT = 0
+        BEGIN
+            PRINT 'Thêm vào FlashSale không thành công';
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
     END
-    ELSE IF @LoaiKM = 2
+    ELSE IF @LoaiKM = 2 -- ComboSale
     BEGIN
-        INSERT INTO ComboSale (LoaiKM, TiLeGiam, SoLuong, MaKM)
-        VALUES (@LoaiKM, @TiLeGiam, @SoLuong, @MaKM);
-		-- Kiểm tra sự thành công của lệnh INSERT
-		IF @@ROWCOUNT = 0
-		BEGIN
-			PRINT 'Thêm vào ComboSale không thành công';
-			ROLLBACK TRANSACTION;
-			RETURN;
-		END
+        INSERT INTO ComboSale (LoaiKM, TiLeGiam, SoLuong, MaKM, MaSP)
+        VALUES (@LoaiKM, @TiLeGiam, @SoLuong, @MaKM, @MaSP);
+
+		INSERT INTO ComboSale (LoaiKM, TiLeGiam, SoLuong, MaKM, MaSP)
+        VALUES (@LoaiKM, @TiLeGiam, @SoLuong, @MaKM, @MaSP2);
+
+        IF @@ROWCOUNT = 0
+        BEGIN
+            PRINT 'Thêm vào ComboSale không thành công';
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+    END
+    ELSE IF @LoaiKM = 3 -- MemberSale
+    BEGIN
+        IF @MucThanThiet IS NULL
+        BEGIN
+            PRINT N'Mức thân thiết không được để trống cho khuyến mãi MemberSale';
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        INSERT INTO MemberSale (MaKH, MucThanThiet, TiLeGiam, SoLuong, MaKM)
+        VALUES (NULL, @MucThanThiet, @TiLeGiam, @SoLuong, @MaKM);
+
+        IF @@ROWCOUNT = 0
+        BEGIN
+            PRINT 'Thêm vào MemberSale không thành công';
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
     END
     ELSE
     BEGIN
@@ -315,7 +339,7 @@ BEGIN
     COMMIT TRANSACTION;
 
     PRINT N'Chương trình khuyến mãi đã được thêm thành công';
-END
+END;
 
 EXEC Sp_AddPromotion 
     @MaSP = 'SP001',          -- Mã sản phẩm
