@@ -27,6 +27,7 @@ INSERT INTO KhachHang(MaKH, HoTen, SDT, NgaySinh, LoaiKH, NgayDangKy, TongTienNa
 INSERT INTO KhachHang(MaKH, HoTen, SDT, NgaySinh, LoaiKH, NgayDangKy, TongTienNamTruoc, MaNV) values(2301122, 'Nguyen Van C',  '0902456782', '09/23/2003', N'Đồng', '01/12/2023', 15000, 10);
 INSERT INTO KhachHang(MaKH, HoTen, SDT, NgaySinh, LoaiKH, NgayDangKy, TongTienNamTruoc, MaNV) values(2301123, 'Nguyen Van C',  '0762456782', '09/23/2004', N'Đồng', '01/12/2023', 30000, 2);
 INSERT INTO KhachHang(MaKH, HoTen, SDT, NgaySinh, LoaiKH, NgayDangKy, TongTienNamTruoc, MaNV) values(2301124, 'Nguyen Van C',  '0842456782', '09/23/1999', N'Đồng', '01/12/2023', 50000, 9);
+INSERT INTO KhachHang(MaKH, HoTen, SDT, NgaySinh, LoaiKH, NgayDangKy, TongTienNamTruoc, MaNV) values(22120223, 'Thai Dinh Ngan',  '0232446782', '01/11/2002', N'Đồng', '01/12/2025', 15000, 8);
 
 INSERT INTO PhieuMuaHang(MaPhieu, MaKH, QuaTang, NgayBatDau, NgayHetHan, TrangThai) values('2309HFJK2301121',2301121, '200000', '01/12/2023', '01/26/2023', N'Đã sử dụng');
 INSERT INTO PhieuMuaHang(MaPhieu, MaKH, QuaTang, NgayBatDau, NgayHetHan, TrangThai) values('2309HFJK2301122',2301122, '200000', '01/12/2023', '01/26/2023', N'Chưa sử dụng');
