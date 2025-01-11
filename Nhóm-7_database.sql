@@ -1,4 +1,4 @@
-﻿use master;
+use master;
 
 create database ConvenientStore;
 Go
@@ -106,37 +106,33 @@ alter table DonDatHang ADD CONSTRAINT FK_MaNSX_NhaSanXuat FOREIGN KEY (MaNSX) RE
 
 CREATE TABLE KhuyenMai (
     MaKM INT PRIMARY KEY,
-    MaSP VARCHAR(50),
     LoaiKM INT,
     TenKM NVARCHAR(50),
     NgayBatDau DATE,
     NgayKetThuc DATE,
-    FOREIGN KEY (MaSP) REFERENCES SanPham(MaSP)
+    SoLuong INT,
+    TiLeGiam INT,
 );
 
 CREATE TABLE MemberSale (
     MaKH INT,
     MucThanThiet VARCHAR(50),
-    TiLeGiam INT,
-    SoLuong INT,
-	MaKM INT PRIMARY KEY, 
+	MaKM INT,
+    PRIMARY KEY (MaKH, MaKM), 
 	Foreign key (MaKM) REFERENCES KhuyenMai(MaKM)
 );
 
 CREATE TABLE FlashSale (
-    LoaiKM INT,
-    TiLeGiam INT,
-    SoLuong INT,
 	MaKM INT PRIMARY KEY, 
+    MaSP VARCHAR(50),
+    FOREIGN KEY (MaSP) REFERENCES SanPham(MaSP),
 	Foreign key (MaKM) REFERENCES KhuyenMai(MaKM)
 );
 
 CREATE TABLE ComboSale (
-    LoaiKM INT,
-    TiLeGiam INT,
-    SoLuong INT,
-	MaKM INT, 
-	MaSP VARCHAR(50),
-	Foreign key (MaKM) REFERENCES KhuyenMai(MaKM),
-	priamry key (MaKM, MaSP)
-	);
+	MaKM INT,
+    MaSP VARCHAR(50),
+    PRIMARY KEY (MaKM, MaSP),
+    Foreign key (MaSP) REFERENCES SanPham(MaSP),
+	Foreign key (MaKM) REFERENCES KhuyenMai(MaKM)
+);
