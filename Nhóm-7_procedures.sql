@@ -58,37 +58,6 @@ begin
     RETURN 0;
 end
 
-create proc SP_UpdateInfoProduct
-@MaSP INT,
-@TenSP NVARCHAR(255),
-@MoTa NVARCHAR(255),
-@GiaNiemYet INT,
-@SoLuongKho INT,
-@MaLoai INT
-as 
-begin
-	BEGIN TRANSACTION UpdateInfoProduct
-	    SET TRANSACTION ISOLATION LEVEL Repeatable Read;
-	
-	if not exists (select 1 from SanPham where MaSP = @MaSP)
-	begin
-		raiserror(N'Sản phẩm không tồn tại trong hệ thông', 16, 1)
-		rollback tran UpdateInfoProduct
-		return 2
-	end
-	UPDATE SanPham
-        SET 
-            TenSP = @TenSP,
-            MoTa = @MoTa,
-            GiaNiemYet = @GiaNiemYet,
-            SoLuongKho = @SoLuongKho,
-            MaLoai = @MaLoai
-        WHERE MaSP = @MaSP;
-	WAITFOR DELAY '00:00:15';
-	COMMIT TRANSACTION UpdateInfoProduct;
-    RETURN 0;
-end
-
 
 -- Bộ phận kinh doanh
 CREATE PROCEDURE Sp_ProductSaleReport
@@ -357,3 +326,78 @@ EXEC Sp_AddPromotion
     @TiLeGiam = 30,           -- Tỷ lệ giảm giá
     @SoLuong = 100;           -- Số lượng khuyến mãi
 
+
+CREATE OR ALTER PROCEDURE Sp_UpdateInfoProduct
+	@MaSP VARCHAR(50),
+	@TenSP NVARCHAR(255),
+	@GiaNiemYet INT, 
+	@SoLuongKho INT, 
+	@MaLoai VARCHAR(50)
+AS
+BEGIN
+	DECLARE @MaSPC VARCHAR(50);
+	DECLARE @Exists INT;
+	Set @Exists = 0;
+
+	BEGIN TRANSACTION;
+    SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+	DECLARE SanPham_Cursor CURSOR FOR
+	SELECT MaSP FROM SanPham;
+
+	OPEN SanPham_Cursor;
+	FETCH NEXT FROM SanPham_Cursor INTO @MaSPC;
+
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+		IF @MaSPC = @MaSP
+		BEGIN
+			SET @Exists = 1;
+			BREAK;
+		END
+		FETCH NEXT FROM SanPham_Cursor INTO @MaSPC;
+	END
+
+	--Nếu sản phẩm không tồn tại
+	IF @Exists = 0
+	BEGIN
+		PRINT N'Sản phẩm không tồn tại';
+        ROLLBACK TRANSACTION;
+        CLOSE SanPham_Cursor;
+        DEALLOCATE SanPham_Cursor;
+        RETURN;
+	END
+	ELSE
+	BEGIN
+		-- Cập nhật thông tin sản phẩm
+		UPDATE SanPham
+		SET TenSP = @TenSP,
+			GiaNiemYet = @GiaNiemYet,
+			SoLuongKho = @SoLuongKho,
+			MaLoai = @MaLoai
+		WHERE MaSP = @MaSP;
+
+		-- Kiểm tra sự thành công của lệnh UPDATE
+		IF @@ROWCOUNT = 0
+		BEGIN
+			PRINT 'Cập nhật không thành công. Không có sản phẩm nào được tìm thấy với mã sản phẩm đã cho.';
+			ROLLBACK TRANSACTION; -- Hoặc bạn có thể không cần rollback nếu không có giao dịch đang mở
+			RETURN;
+		END
+
+		-- Commit giao dịch
+		COMMIT TRANSACTION;
+
+		PRINT N'Thông tin sản phẩm đã được cập nhật thành công';
+
+		CLOSE SanPham_Cursor;
+		DEALLOCATE SanPham_Cursor;
+	END
+END
+
+EXEC Sp_UpdateInfoProduct
+    @MaSP = 'SP001',         -- Mã sản phẩm cần cập nhật
+    @TenSP = N'Tên sản phẩm mới', -- Tên sản phẩm mới
+    @GiaNiemYet = 1500000,  -- Giá niêm yết mới
+    @SoLuongKho = 100,      -- Số lượng kho mới
+    @MaLoai = 'L001';       -- Mã loại sản phẩm mới
