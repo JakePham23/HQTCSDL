@@ -57,6 +57,74 @@ begin
 	COMMIT TRANSACTION InsertNewUser;
     RETURN 0;
 end
+CREATE PROCEDURE SP_GiftBirthdayVoucher
+    @MaKH INT -- Input: Mã khách hàng
+AS
+BEGIN
+    BEGIN TRANSACTION;
+    SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+        -- Kiểm tra sự tồn tại của khách hàng
+        IF NOT EXISTS (SELECT 1 FROM KhachHang WITH (READCOMMITTEDLOCK) WHERE MaKH = @MaKH)
+        BEGIN
+            ROLLBACK;
+            RAISERROR ('Khách hàng không tồn tại', 16, 1);
+            RETURN;
+        END
+
+        -- Kiểm tra ngày sinh nhật của khách hàng
+        IF EXISTS (SELECT 1 FROM KhachHang WITH (READCOMMITTEDLOCK) 
+                   WHERE MaKH = @MaKH AND CONVERT(DATE, NgaySinh) = CONVERT(DATE, GETDATE()))
+        BEGIN
+            -- Khai báo các biến
+            DECLARE @LoaiKH NVARCHAR(50);
+            DECLARE @QuaTang INT;
+
+            -- Lấy thông tin loại khách hàng
+            SELECT @LoaiKH = LoaiKH FROM KhachHang WHERE MaKH = @MaKH;
+
+            -- Xác định giá trị quà tặng
+            IF (@LoaiKH = N'Kim cương') SET @QuaTang = 1200000;
+            ELSE IF (@LoaiKH = N'Bạch Kim') SET @QuaTang = 700000;
+            ELSE IF (@LoaiKH = N'Vàng') SET @QuaTang = 500000;
+            ELSE IF (@LoaiKH = N'Bạc') SET @QuaTang = 200000;
+            ELSE IF (@LoaiKH = N'Đồng') SET @QuaTang = 100000;
+            ELSE 
+            BEGIN
+                ROLLBACK;
+                RAISERROR ('Khách hàng chưa đủ điều kiện để nhận phiếu mua hàng', 16, 1);
+                RETURN;
+            END
+
+			-- Khai báo biến MaPhieu
+			DECLARE @MaPhieu NVARCHAR(50); 
+			SET @MaPhieu = CONCAT(@MaKH, 'PMHCVN', FORMAT(GETDATE(), 'yyyyMMddHHmmss'));
+
+			-- Cập nhật thông tin quà tặng trong bảng PhieuMuaHang
+			INSERT INTO PhieuMuaHang (MaPhieu, MaKH, QuaTang, NgayBatDau, NgayHetHan, TrangThai) 
+			VALUES (
+				@MaPhieu,         -- Mã phiếu
+				@MaKH,            -- Mã khách hàng
+				@QuaTang,         -- Giá trị quà tặng
+				GETDATE(),        -- Ngày bắt đầu (hôm nay - ngày sinh nhật)
+				DATEADD(DAY, 14, GETDATE()), -- Ngày hết hạn: 14 ngày sau ngày bắt đầu
+				N'Chưa sử dụng'            -- Trạng thái
+			);
+
+            -- Ghi log thành công
+            PRINT 'Đã tặng quà cho khách hàng';
+        END
+        ELSE
+        BEGIN
+            ROLLBACK;
+            RAISERROR ('Hôm nay không phải sinh nhật của khách hàng', 16, 1);
+            RETURN;
+        END
+
+        -- Commit transaction
+        COMMIT;
+END;
+GO
 
 
 -- Bộ phận kinh doanh
