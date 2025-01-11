@@ -135,5 +135,6 @@ CREATE TABLE ComboSale (
     LoaiKM INT,
     SoLuong INT,
 	MaKM INT PRIMARY KEY, 
+    TiLeGiam INT,
 	Foreign key (MaKM) REFERENCES KhuyenMai(MaKM)
 );
