@@ -23,28 +23,30 @@ INSERT INTO DonHang VALUES
 (1, 1, 1, '2025-01-10', 0);
 
 -- 1. Flash Sale
-INSERT INTO KhuyenMai (MaKM, MaSP, LoaiKM, TenKM, NgayBatDau, NgayKetThuc) VALUES
-(1, 'SP001', 1, N'Flash Sale Coca', '2025-01-01', '2025-12-31'),
-(2, 'SP002', 1, N'Flash Sale Snack', '2025-01-01', '2025-12-31');
+INSERT INTO KhuyenMai (MaKM, LoaiKM, TenKM, NgayBatDau, NgayKetThuc, SoLuong, TiLeGiam) VALUES
+(1, 1, N'Flash Sale Coca', '2025-01-01', '2025-12-31', 100, 50),
+(2, 1, N'Flash Sale Snack', '2025-01-01', '2025-12-31', 100, 30);
 
-INSERT INTO FlashSale (MaKM, LoaiKM, TiLeGiam, SoLuong) VALUES
-(1, 1, 30, 100), 
-(2, 1, 25, 100);  
+INSERT INTO FlashSale (MaKM, MaSP) VALUES
+(1, 'SP001'), 
+(2, 'SP002');  
 
 -- 2. Combo Sale
-INSERT INTO KhuyenMai (MaKM, MaSP, LoaiKM, TenKM, NgayBatDau, NgayKetThuc) VALUES
-(3, 'SP001', 2, N'Combo Coca', '2025-01-01', '2025-12-31'),
-(4, 'SP003', 2, N'Combo Mì', '2025-01-01', '2025-12-31');
+INSERT INTO KhuyenMai (MaKM, LoaiKM, TenKM, NgayBatDau, NgayKetThuc, SoLuong, TiLeGiam) VALUES
+(3, 2, N'Combo Coca', '2025-01-01', '2025-12-31', 100, 40),
+(4, 2, N'Combo Mì', '2025-01-01', '2025-12-31', 100, 35);
 
-INSERT INTO ComboSale (MaKM, LoaiKM, TiLeGiam, SoLuong) VALUES
-(3, 2, 40, 100),  
-(4, 2, 35, 100);  
+INSERT INTO ComboSale (MaKM, MaSP) VALUES
+(3, 'SP001'),
+(3, 'SP002'),
+(4, 'SP002'),
+(4, 'SP003');  
 
 -- 3. Member Sale
-INSERT INTO KhuyenMai (MaKM, MaSP, LoaiKM, TenKM, NgayBatDau, NgayKetThuc) VALUES
-(5, 'SP001', 3, N'Member Sale Coca - Vàng', '2025-01-01', '2025-12-31'),
-(6, 'SP001', 3, N'Member Sale Coca - Bạc', '2025-01-01', '2025-12-31');
+INSERT INTO KhuyenMai (MaKM, LoaiKM, TenKM, NgayBatDau, NgayKetThuc, SoLuong, TiLeGiam) VALUES
+(5, 3, N'Member Sale Coca - Vàng', '2025-01-01', '2025-12-31', 100, 60),
+(6, 3, N'Member Sale Coca - Bạc', '2025-01-01', '2025-12-31', 100, 35);
 
-INSERT INTO MemberSale (MaKM, MucThanThiet, TiLeGiam, SoLuong) VALUES
-(5, N'Vàng', 50, 100), 
-(6, N'Bạc', 35, 100);   
+INSERT INTO MemberSale (MaKH, MucThanThiet, MaKM) VALUES
+(1, N'Vàng', 5), 
+(2, N'Bạc', 6); 

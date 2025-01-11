@@ -72,7 +72,7 @@ BEGIN
         CREATE TABLE #ValidPromotions (
             MaKM INT,
             TiLeGiam INT,
-            LoaiKM NVARCHAR(50)
+            LoaiKM INT
         )
 
         DECLARE @CurrentDate DATE = GETDATE()
@@ -80,83 +80,67 @@ BEGIN
         -- Flash Sale
         INSERT INTO #ValidPromotions
         SELECT 
-            fs.MaKM,
-            fs.TiLeGiam,
-            'FlashSale' as LoaiKM
-        FROM FlashSale fs WITH (UPDLOCK)
-        JOIN KhuyenMai km ON fs.MaKM = km.MaKM
-        WHERE km.MaSP = @MaSP 
+            km.MaKM,
+            km.TiLeGiam,
+            km.LoaiKM
+        FROM KhuyenMai km WITH (UPDLOCK)
+        JOIN FlashSale fs ON fs.MaKM = km.MaKM
+        WHERE fs.MaSP = @MaSP 
             AND @CurrentDate BETWEEN km.NgayBatDau AND km.NgayKetThuc
-            AND fs.SoLuong >= @SoLuong
+            AND km.SoLuong >= @SoLuong
+            AND km.LoaiKM = 1
 
         -- Combo Sale
         INSERT INTO #ValidPromotions
         SELECT 
-            cs.MaKM,
-            cs.TiLeGiam,
-            'ComboSale' as LoaiKM
-        FROM ComboSale cs WITH (UPDLOCK)
-        JOIN KhuyenMai km ON cs.MaKM = km.MaKM
-        WHERE km.MaSP = @MaSP 
+            km.MaKM,
+            km.TiLeGiam,
+            km.LoaiKM
+        FROM KhuyenMai km WITH (UPDLOCK)
+        JOIN ComboSale cs ON cs.MaKM = km.MaKM
+        WHERE cs.MaSP = @MaSP 
             AND @CurrentDate BETWEEN km.NgayBatDau AND km.NgayKetThuc
-            AND cs.SoLuong >= @SoLuong 
+            AND km.SoLuong >= @SoLuong
+            AND km.LoaiKM = 2
 
         -- Member Sale
         IF @MaKH IS NOT NULL
         BEGIN
-            DECLARE @LoaiKH NVARCHAR(100)
-            SELECT @LoaiKH = LoaiKH 
-            FROM KhachHang 
-            WHERE MaKH = @MaKH
-
-            IF @LoaiKH IS NOT NULL
-            BEGIN
-                INSERT INTO #ValidPromotions
-                SELECT 
-                    ms.MaKM,
-                    ms.TiLeGiam,
-                    'MemberSale' as LoaiKM
-                FROM MemberSale ms WITH (UPDLOCK)
-                JOIN KhuyenMai km ON ms.MaKM = km.MaKM
-                WHERE km.MaSP = @MaSP 
-                    AND @CurrentDate BETWEEN km.NgayBatDau AND km.NgayKetThuc
-                    AND ms.MucThanThiet = @LoaiKH
-                    AND ms.SoLuong >= @SoLuong 
-            END
+            INSERT INTO #ValidPromotions
+            SELECT 
+                km.MaKM,
+                km.TiLeGiam,
+                km.LoaiKM
+            FROM KhuyenMai km WITH (UPDLOCK)
+            JOIN MemberSale ms ON ms.MaKM = km.MaKM
+            WHERE ms.MaKH = @MaKH
+                AND @CurrentDate BETWEEN km.NgayBatDau AND km.NgayKetThuc
+                AND km.SoLuong >= @SoLuong
+                AND km.LoaiKM = 3
         END
 
         SELECT TOP 1
             @BestMaKM = MaKM,
-            @BestDiscount = TiLeGiam,
-            @BestPromotionType = LoaiKM
+            @BestDiscount = TiLeGiam
         FROM #ValidPromotions
         ORDER BY TiLeGiam DESC
 
-        -- Cập nhật số lượng khuyến mãi còn lại
         IF @BestMaKM IS NOT NULL
         BEGIN
-            IF @BestPromotionType = 'FlashSale'
-                UPDATE FlashSale
-                SET SoLuong = SoLuong - @SoLuong
-                WHERE MaKM = @BestMaKM
-                
-            IF @BestPromotionType = 'ComboSale'
-                UPDATE ComboSale
-                SET SoLuong = SoLuong - @SoLuong
-                WHERE MaKM = @BestMaKM
-                
-            IF @BestPromotionType = 'MemberSale'
-                UPDATE MemberSale
-                SET SoLuong = SoLuong - @SoLuong
-                WHERE MaKM = @BestMaKM
+            UPDATE KhuyenMai
+            SET SoLuong = SoLuong - @SoLuong
+            WHERE MaKM = @BestMaKM
         END
 
         SELECT 
             @BestMaKM as MaKM,
-            @BestPromotionType as LoaiKhuyenMai,
+            CASE 
+                WHEN @BestMaKM IS NULL THEN NULL
+                ELSE (SELECT LoaiKM FROM KhuyenMai WHERE MaKM = @BestMaKM)
+            END as LoaiKhuyenMai,
             @BestDiscount as TiLeGiam,
             CASE 
-                WHEN @BestPromotionType IS NULL THEN N'Không có khuyến mãi phù hợp'
+                WHEN @BestMaKM IS NULL THEN N'Không có khuyến mãi phù hợp'
                 ELSE N'Khuyến mãi hợp lệ'
             END as TrangThai
 
@@ -187,7 +171,7 @@ BEGIN
                
                CREATE TABLE #BestPromotion (
                    MaKM INT,
-                   LoaiKhuyenMai NVARCHAR(50),
+                   LoaiKhuyenMai INT,   
                    TiLeGiam INT,
                    TrangThai NVARCHAR(100)
                )
@@ -205,6 +189,13 @@ BEGIN
                PRINT N'Giá niêm yết: ' + CAST(@GiaNiemYet AS NVARCHAR(20))
                PRINT N'Discount: ' + CAST(@BestDiscount AS NVARCHAR(20)) + '%'
                PRINT N'Giá sau giảm: ' + CAST(@FinalPrice AS NVARCHAR(20))
+
+               -- Di chuyển phần tạo DonHang lên trước
+               IF NOT EXISTS (SELECT 1 FROM DonHang WHERE MaDH = @MaDH)
+               BEGIN
+                   INSERT INTO DonHang(MaDH, MaKH, MaNVDat, NgayDat, TongTien)
+                   VALUES(@MaDH, @MaKH, @MaNV, GETDATE(), 0)
+               END
 			
                UPDATE SanPham
                SET SoLuongKho = SoLuongKho - @SoLuong
