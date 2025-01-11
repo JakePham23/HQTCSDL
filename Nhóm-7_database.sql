@@ -123,8 +123,9 @@ CREATE TABLE MemberSale (
 );
 
 CREATE TABLE FlashSale (
-	MaKM INT PRIMARY KEY, 
+	MaKM INT, 
     MaSP VARCHAR(50),
+    PRIMARY KEY (MaKM, MaSP),
     FOREIGN KEY (MaSP) REFERENCES SanPham(MaSP),
 	Foreign key (MaKM) REFERENCES KhuyenMai(MaKM)
 );
