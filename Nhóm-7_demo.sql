@@ -12,8 +12,8 @@ CREATE OR ALTER PROCEDURE Sp_ReOrderStock
     @MaSP VARCHAR(50)
 AS
 BEGIN
-    SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
     BEGIN TRANSACTION
+    SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
         DECLARE @SoLuongKho INT, @SL_SP_TD INT
         
         SELECT @SoLuongKho = SoLuongKho,
@@ -49,8 +49,8 @@ CREATE OR ALTER PROCEDURE Sp_ProcessingOrder
    @MaKH INT = NULL
 AS
 BEGIN
-   SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
    BEGIN TRY
+   SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
        BEGIN TRANSACTION
            DECLARE @SoLuongKho INT, @GiaNiemYet INT
            SELECT @SoLuongKho = SoLuongKho, @GiaNiemYet = GiaNiemYet
@@ -60,6 +60,11 @@ BEGIN
            IF @SoLuongKho >= @SoLuong
            BEGIN
                PRINT N'Số lượng tồn kho trước khi cập nhật: ' + CAST(@SoLuongKho AS NVARCHAR(20))
+               IF NOT EXISTS (SELECT 1 FROM DonHang WHERE MaDH = @MaDH)
+               BEGIN
+                   INSERT INTO DonHang(MaDH, MaKH, MaNVDat, NgayDat, TongTien)
+                   VALUES(@MaDH, @MaKH, @MaNV, GETDATE(), 0)
+               END
                
                UPDATE SanPham
                SET SoLuongKho = SoLuongKho - @SoLuong
@@ -94,10 +99,12 @@ END
 GO
 
 -- Reset data
--- UPDATE SanPham SET SoLuongKho = 100 WHERE MaSP = 'SP001'
+-- UPDATE SanPham SET SoLuongKho = 100 WHERE MaSP = 'SP01'
 -- UPDATE DonHang SET TongTien = 0 WHERE MaDH = 1
 -- DELETE FROM DonDatHang
 -- DELETE FROM ChiTietDonHang
+-- TEST RESULT
+-- SELECT * FROM SanPham WHERE MaSP = 'SP01'
 
 -- Chạy trong cửa sổ Query 1:
 EXEC Sp_ReOrderStock 'SP01'

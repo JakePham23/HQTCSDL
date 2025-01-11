@@ -51,7 +51,7 @@ INSERT INTO LoaiSanPham (MaLoai, TenLoai) VALUES
 
 -- fresh food 
 INSERT INTO SanPham (MaSP, TenSP, GiaNiemYet, SoLuongKho, SL_SP_TD, MaLoai, MoTa) VALUES 
-('SP01', N'Cơm nắm lá rong biển', 15000, 100, 20, 'L01', N'Fresh Food - Cơm nắm hương vị truyền thống'),
+('SP01', N'Cơm nắm lá rong biển', 15000, 100, 50, 'L01', N'Fresh Food - Cơm nắm hương vị truyền thống'),
 ('SP02', N'Tokbokki phô mai', 35000, 80, 15, 'L01', N'Bánh gạo cay, kết hợp phô mai thơm béo'),
 ('SP03', N'Xúc xích chiên', 20000, 120, 25, 'L01', N'Xúc xích thơm ngon, chiên giòn rụm'),
 ('SP04', N'Bánh bao hấp nhân thịt', 25000, 90, 18, 'L01', N'Bánh bao tươi, nhân thịt đậm đà'),

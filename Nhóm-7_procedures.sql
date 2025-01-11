@@ -44,6 +44,7 @@ BEGIN
             
             INSERT INTO DonDatHang(MaDDH, MaSP, NgayDat, SoLuongDat, MaNV, TrangThai)
             VALUES(@MaDDH, @MaSP, GETDATE(), (@SL_SP_TD - @SoLuongKho) * 2, NULL, 'Pending')
+            PRINT N'Đã tạo đơn đặt hàng ' + @MaDDH
         END
     COMMIT TRANSACTION
 END
@@ -645,4 +646,4 @@ EXEC Sp_UpdateInfoProduct
     @TenSP = N'Tên sản phẩm mới', -- Tên sản phẩm mới
     @GiaNiemYet = 1500000,  -- Giá niêm yết mới
     @SoLuongKho = 100,      -- Số lượng kho mới
-    @MaLoai = 'L001';       -- Mã loại sản phẩm mới
+    @MaLoai = 'L001';       -- Mã loại sản phẩm mới 
