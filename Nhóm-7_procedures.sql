@@ -1,7 +1,6 @@
 <<<<<<< HEAD
 ﻿use ConvenientStore;
 =======
-use ConvenientStore;
 >>>>>>> 725b467e37321eff7744d231ecad573206967fd1
 -- Bộ phận chăm sóc khách hàng
 CREATE PROCEDURE SP_InsertNewUser 
