@@ -69,7 +69,6 @@ CREATE TABLE SanPham (
     MaLoai VARCHAR(50),
     FOREIGN KEY (MaLoai) REFERENCES LoaiSanPham(MaLoai)
 );
-ALTER TABLE SanPham ADD  MoTa NVARCHAR(255)
 
 
 CREATE TABLE ChiTietDonHang (
@@ -133,10 +132,10 @@ CREATE TABLE FlashSale (
 
 CREATE TABLE ComboSale (
     LoaiKM INT,
-    TiLeGiam INT,
     SoLuong INT,
-	MaKM INT, 
+	TiLeGiam INT,
+	MaKM INT,
 	MaSP VARCHAR(50),
-	Foreign key (MaKM) REFERENCES KhuyenMai(MaKM),
-	priamry key (MaKM, MaSP)
-	);
+	PRIMARY KEY (MaKM,MaSP),
+	Foreign key (MaKM) REFERENCES KhuyenMai(MaKM)
+);
