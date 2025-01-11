@@ -33,9 +33,6 @@ BEGIN
         INSERT INTO KhachHang (MaKH, HoTen, SDT, NgaySinh, MaNV) 
         VALUES (@MaKH, @HoTen, @SDT, @NgaySinh, @MaNV);
 
-        -- Optional delay (for testing purposes)
-        WAITFOR DELAY '00:00:20';
-
         COMMIT TRANSACTION InsertNewUser;
         RETURN 0; -- Success
 END;
